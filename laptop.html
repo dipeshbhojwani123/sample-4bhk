@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<!-- Declared, not inherited: served by a plain static host, a '·' would otherwise render as 'Â·'. -->
+<meta charset="utf-8">
+<link rel="preload" href="model.glb.txt" as="fetch" crossorigin="anonymous">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sample 4 BHK Walkthrough HD</title>
+<meta name="description" content="A 3D home built from its floor plan. Walk through it, look from above, climb the stairs. No app, no login.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230e1c30'/><path d='M6 20 L16 8 L26 20' fill='none' stroke='%231f6f9c' stroke-width='2.6' stroke-linejoin='round'/><rect x='11' y='19' width='10' height='7' fill='%23e9eef3'/></svg>">
+<!-- ?v=: /vendor has no cache headers; bump it when a token this page uses is new -->
+<link rel="stylesheet" href="./vendor/tokens.css">
+<style>
+  * { margin: 0; padding: 0; }
+  body {
+    /* matches the 3D viewport behind it (VIEWPORT_BG): a light page around a dark viewport
+       flashes white on load and frames the model in a bright border */
+    background: #1d1d1d; color: var(--ink); overflow: hidden; touch-action: none;
+    font: var(--font);
+  }
+  /* #info, #disc and #loading sit straight on the viewport, which is dark in BOTH schemes */
+  #info {
+    position: absolute; bottom: 18px; left: 0; right: 0;
+    text-align: center; color: rgba(241, 239, 236, .56);
+    font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    pointer-events: none;
+  }
+  #disc {
+    position: absolute; bottom: 4px; left: 0; right: 0; text-align: center;
+    color: rgba(241, 239, 236, .56); opacity: .7; font: 500 9px/1 var(--mono); letter-spacing: .06em;
+    pointer-events: none;
+  }
+  #loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: #f1efec; font: var(--font); font-weight: 600; letter-spacing: -.02em;
+    text-align: center;
+  }
+  #loadbar { width: 220px; height: 2px; margin: 14px auto 0; background: rgba(241, 239, 236, .18); overflow: hidden; }
+  #loadfill { width: 0%; height: 100%; background: #f1efec; transition: width 0.15s; }
+  #diag {
+    position: absolute; top: 0; left: 0; right: 0; max-height: 45%;
+    overflow: auto; display: none; z-index: 99;
+    background: var(--ink); color: var(--ink-inv); padding: 10px 14px;
+    font: 12px/1.5 var(--mono); white-space: pre-wrap;
+  }
+  #shading {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 3px; padding: 4px;
+    flex-wrap: wrap; justify-content: center; max-width: 94vw;
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    border: 1px solid var(--border); border-radius: 999px;
+    backdrop-filter: blur(14px) saturate(140%);
+    font: 500 12px var(--sans);
+  }
+  #shading button, #shading a {
+    border: 0; border-radius: 999px; padding: 7px 13px; cursor: pointer;
+    font: inherit; letter-spacing: -.01em; white-space: nowrap;
+    color: var(--muted); background: transparent; text-decoration: none;
+    transition: background .2s, color .2s, transform .2s;
+  }
+  #shading button:hover, #shading a:hover { color: var(--ink); background: var(--brand-soft); }
+  #shading button:active { transform: scale(.94); }
+  #shading button.active { background: var(--ink); color: var(--ink-inv); }
+  #levels { color: var(--muted); font: 600 10px/1 var(--mono); letter-spacing: .12em;
+            text-transform: uppercase; align-self: center; padding: 0 8px; }
+  #help {
+    position: absolute; left: 50%; transform: translateX(-50%); z-index: 60; display: none;
+    top: 76px; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 110px); overflow-y: auto;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px;
+    backdrop-filter: blur(14px) saturate(140%);
+    font: 500 13px/1.5 var(--sans); color: var(--ink); box-sizing: border-box;
+  }
+  #help h4 { display: flex; justify-content: space-between; align-items: center;
+             font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+             color: var(--muted); margin: 12px 0 6px; }
+  #help h4:first-child { margin-top: 0; }
+  #help dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+  #help dt { font-weight: 600; white-space: nowrap; }
+  #help dd { color: var(--muted); }
+  #help .x { border: 1px solid var(--border); border-radius: 999px; cursor: pointer; color: var(--ink);
+             background: var(--brand-soft); width: 28px; height: 28px; padding: 0; font: 600 15px/1 var(--sans); }
+  #help button:focus-visible, #shading :focus-visible, #setbtn:focus-visible, #settings :focus-visible {
+    outline: 2px solid var(--brand, var(--ink)); outline-offset: 2px; }
+  /* SETTINGS, top right: a gear and the switches behind it (the same glass as the toolbar) */
+  #setbtn {
+    position: absolute; top: 14px; right: 14px; z-index: 61; width: 40px; height: 40px; padding: 0;
+    border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+    background: color-mix(in srgb, var(--bg) 80%, transparent); color: var(--muted);
+    backdrop-filter: blur(14px) saturate(140%); font: 400 19px/1 var(--sans);
+  }
+  #setbtn:hover { color: var(--ink); background: var(--brand-soft); }
+  #setbtn.active { background: var(--ink); color: var(--ink-inv); }
+  #settings {
+    position: absolute; top: 62px; right: 14px; z-index: 61; display: none; min-width: 170px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px;
+    backdrop-filter: blur(14px) saturate(140%); font: 500 13px/1.5 var(--sans); color: var(--ink);
+  }
+  #settings label { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; }
+  #settings input { width: 16px; height: 16px; accent-color: var(--ink); cursor: pointer; }
+  /* walk-mode minimap: the storey you stand on, and where you are. Touches pass through it,
+     so it never steals a thumb from the move/look zones. */
+  /* WHERE YOU ARE, the way a game names the district you drive into: bottom right, big italic
+     white with a dark outline, in for a few seconds each time you enter a room */
+  #where { position: fixed; right: 28px; bottom: 64px; z-index: 36; pointer-events: none;
+           font: italic 800 36px/1.05 var(--sans, "Inter Tight", system-ui, sans-serif);
+           letter-spacing: .005em; color: #fff7e2; text-align: right;
+           opacity: 0; transform: translateY(8px); transition: opacity .45s ease, transform .45s ease;
+           text-shadow: -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111,
+                        1.5px 1.5px 0 #111, 0 4px 14px rgba(0,0,0,.55); }
+  #where.on { opacity: 1; transform: none; }
+  #mini { position: fixed; left: 12px; bottom: 12px; width: 240px; height: 240px; z-index: 35;
+          display: none; pointer-events: none; border-radius: 12px;
+          background: rgba(16,16,16,.6); border: 1px solid rgba(255,255,255,.14);
+          backdrop-filter: blur(8px); }
+  @media (max-width: 640px) {
+    #mini { width: 150px; height: 150px; left: 8px; bottom: 8px; }
+    #where { font-size: 22px; right: 14px; bottom: 58px; }
+    #setbtn { top: 8px; right: 8px; }
+    #settings { top: 54px; right: 8px; }
+    /* the toolbar: one swipeable row instead of a bubble over a quarter of the screen */
+    #shading {
+      top: 8px; left: 8px; right: 56px; transform: none; max-width: none;
+      flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto;
+      scrollbar-width: none; overscroll-behavior: contain;
+    }
+    #shading::-webkit-scrollbar { display: none; }
+    #shading button, #shading a { padding: 7px 11px; }
+    #insidebtn, #outsidebtn, #helpbtn { order: -1; }   /* the main actions first, not behind a swipe */
+    #info { display: none; }
+  }
+</style>
+<div id="diag"></div>
+<script>
+// Make silent failures visible BEFORE the module runs (catches import/WebGL errors).
+// Always to the console; on the page only with ?debug=1.
+(function () {
+  const el = document.getElementById('diag');
+  const debug = new URLSearchParams(location.search).has('debug');
+  function show(msg) {
+    console.warn(msg);
+    if (!debug) return;
+    el.style.display = 'block';
+    el.textContent += msg + '\n';
+  }
+  window.addEventListener('error', (e) => {
+    show('❌ ' + (e.message || e.error || 'script/module load error') +
+         (e.filename ? '\n   @ ' + e.filename + ':' + e.lineno : ''));
+  }, true);
+  window.addEventListener('unhandledrejection', (e) => {
+    show('❌ promise: ' + (e.reason?.message || e.reason));
+  });
+  window.__diag = show;
+})();
+</script>
+<div id="loading">
+  <div id="loadtext">Loading 3D model…</div>
+  <div id="loadbar"><div id="loadfill"></div></div>
+</div>
+<div id="shading">
+  <button id="insidebtn" style="display:none" title="Walk through the rooms at eye height">Inside</button>
+  <button id="outsidebtn" style="display:none" title="The whole home from outside, roof off">Outside</button>
+  <button id="personbtn" style="display:none" title="A 1.70 m person, for scale">Person</button>
+  <span id="levels"></span>
+  <button id="helpbtn" title="How to use this viewer" aria-label="Help"
+          aria-haspopup="dialog" aria-controls="help">?</button>
+</div>
+<div id="help" role="dialog" aria-label="How to use this viewer"></div>
+<button id="setbtn" title="Settings" aria-label="Settings" aria-haspopup="dialog"
+        aria-controls="settings" aria-expanded="false">&#9881;</button>
+<div id="settings" role="dialog" aria-label="Settings">
+  <label><input type="checkbox" id="furnchk" checked> Furniture</label>
+</div>
+<div id="info">Drag to orbit · Scroll/pinch to zoom</div>
+<div id="where" aria-live="polite"></div>
+<div id="disc">Built from the floor plan · dimensions approximate</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const DIAG = window.__diag || ((m) => console.log(m));
+const PARAMS = new URLSearchParams(location.search);
+const PLAN = PARAMS.get('plan') || 'demo';
+// `view` is part of the SHAREABLE LINK: top = dollhouse from above, walk = straight inside
+// a link opens INSIDE the home (first-person walk); `view=orbit` for the dollhouse from outside
+const VIEW = PARAMS.get('view') || 'walk';
+const loadingEl = document.getElementById('loading');
+const loadTextEl = document.getElementById('loadtext');
+const loadFillEl = document.getElementById('loadfill');
+let gpuInfo = '';
+
+let grid = null;          // the ground grid; built once the model's size is known
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500);
+const scene = new THREE.Scene();
+// A dark ground reads as "a model on a workbench", which is what a dollhouse view of an
+// unbuilt home is; a white backdrop washes out a pale home.
+const VIEWPORT_BG = 0x1d1d1d;
+scene.background = new THREE.Color(VIEWPORT_BG);
+// A phone is not a small desktop: a high devicePixelRatio and a fraction of the fill rate.
+const MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+const HINT = matchMedia('(pointer: coarse)').matches ? 'Drag to orbit · Pinch to zoom'
+  : 'Drag to orbit · Scroll/pinch to zoom';
+// Which model tier to fetch: the KTX2 web build everywhere (block-compressed textures are a
+// fraction of the memory bandwidth, faster on desktops too). `?tier=master` for comparison.
+let WEB = false;
+
+const hemi = new THREE.HemisphereLight(0xfff3e2, 0x8a857c, 0.75);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffe9c8, 1.7);
+sun.position.set(8, 14, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);   // QSET decides (setQuality)
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.02;
+scene.add(sun);
+
+const controls = new OrbitControls(camera, document.body);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 0.5;
+controls.maxPolarAngle = Math.PI / 2 - 0.02; // don't go below ground
+
+function makeRenderer() {
+  // some GPUs/drivers reject the default context; try progressively cheaper ones.
+  // NO antialias on the canvas: every frame is drawn into the composer's MSAA target, and the
+  // canvas only ever receives one full-screen rectangle with no edges to smooth. An antialiased
+  // canvas was a second, unused multisampled buffer (~110 MB at 2x).
+  // ⚠️ alpha stays at its default. An opaque canvas (alpha: false) lost 152 frames on the way
+  // to the screen in a 47 s Safari walk, against 2-8 with it.
+  const canvas = document.createElement('canvas');
+  const tries = [
+    { antialias: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
+    { antialias: false, failIfMajorPerformanceCaveat: false },
+    { failIfMajorPerformanceCaveat: false },
+  ];
+  for (const attrs of tries) {
+    const ctx = canvas.getContext('webgl2', attrs) || canvas.getContext('webgl', attrs)
+      || canvas.getContext('experimental-webgl', attrs);
+    if (ctx) return new THREE.WebGLRenderer({ canvas, context: ctx, antialias: !!attrs.antialias });
+  }
+  throw new Error('no-webgl');
+}
+
+let renderer;
+try {
+  renderer = makeRenderer();
+} catch (e) {
+  loadingEl.style.color = '#fff';
+  loadingEl.innerHTML =
+    '<b style="font-size:17px">3D can’t start — WebGL is unavailable in this browser.</b>' +
+    '<div style="text-align:left;max-width:440px;margin:14px auto 0;line-height:1.6;font-size:14px">' +
+    '1. Open <code>chrome://settings/system</code><br>' +
+    '2. Turn <b>ON</b> “Use graphics acceleration when available”<br>' +
+    '3. Click <b>Relaunch</b>, then reopen this page.<br><br>' +
+    'Still stuck? Open <code>chrome://gpu</code> — if WebGL shows “Disabled” or “Software only”, ' +
+    'update your graphics driver, or try a different browser (Edge/Firefox).</div>';
+  throw e; // halt the rest of the module; the message above tells the user how to fix it
+}
+renderer.setSize(window.innerWidth, window.innerHeight);
+// ⚠️ A phone reports devicePixelRatio 3; capping at 1.5 there is the single biggest
+// frame-rate lever in this file and costs almost no sharpness at phone screen sizes.
+renderer.setPixelRatio(MOBILE ? Math.min(window.devicePixelRatio, 1.5)
+                              : Math.min(Math.max(window.devicePixelRatio, 1.5), 2.5));
+// ^ the start value only; QSET (quality levels, below) owns it from there
+// AgX renders darker at a given exposure, so exposure is raised to suit.
+// ?tone=neutral: Khronos PBR Neutral (keeps hue + saturation; AgX desaturates), for A/B
+const NEUTRAL = PARAMS.get('tone') === 'neutral', EXPO = parseFloat(PARAMS.get('expo')) || (NEUTRAL ? 1.0 : 1.7);
+renderer.toneMapping = NEUTRAL ? THREE.NeutralToneMapping : THREE.AgXToneMapping;
+renderer.toneMappingExposure = EXPO;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+try {
+  const gl = renderer.getContext();
+  const d = gl.getExtension('WEBGL_debug_renderer_info');
+  gpuInfo = d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : 'WebGL ' + gl.getParameter(gl.VERSION);
+} catch (e) { gpuInfo = 'unknown'; }
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  DIAG('⚠️ WebGL context LOST — the GPU gave up rendering this scene.\n   GPU: ' + gpuInfo);
+});
+
+// image-based ambient: a WARM INTERIOR environment built in-code so PBR floors reflect warm
+// light. Bright warm zenith (HDR >1 = a lit ceiling) -> warm walls -> cool floor.
+function makeInteriorEnv() {
+  const w = 64, h = 32, data = new Float32Array(w * h * 4);
+  const zen = [2.4, 2.2, 1.9], mid = [1.15, 1.06, 0.94], flr = [0.30, 0.32, 0.38];
+  for (let y = 0; y < h; y++) {
+    const t = y / (h - 1);                       // 0 = up, 1 = down
+    const k = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+    const a = t < 0.5 ? zen : mid, b = t < 0.5 ? mid : flr;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      data[i] = a[0] * (1 - k) + b[0] * k;
+      data[i + 1] = a[1] * (1 - k) + b[1] * k;
+      data[i + 2] = a[2] * (1 - k) + b[2] * k;
+      data[i + 3] = 1;
+    }
+  }
+  const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat, THREE.FloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromEquirectangular(makeInteriorEnv()).texture;
+// Upgrade to the REAL interior HDRI (a CC0 studio light pre-baked to a raw float32
+// equirect). Async so it never blocks first paint; keeps the gradient on a 404.
+new Promise(r => addEventListener('modelshown', r, { once: true })).then(() => fetch('./vendor/interior_env.bin.txt')).then(r => r.ok ? r.text() : Promise.reject()).then(b64buf).then(buf => {
+  const tex = new THREE.DataTexture(new Float32Array(buf), 256, 128, THREE.RGBAFormat, THREE.FloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.needsUpdate = true;
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+}).catch(() => {});
+scene.environmentIntensity = 0.9;
+
+// ---- QUALITY LEVELS + FPS GOVERNOR. One table decides what a frame costs. A phone starts at
+// medium, a desktop at high, and the governor steps DOWN when moving frames miss the display
+// rate. `?quality=` pins it outright.
+//   pr      pixel ratio (the biggest lever: fragments scale with its square)
+//   shadow  sun shadow map size
+// ⚠️ MSAA AT EVERY LEVEL, 4 samples, never off (EDGE_AA below). `high` used to drop it at 2x
+// and above, as if 2x were supersampling: on a 2x screen it is just native pixels, so every
+// window frame, door casing and border was drawn with NO antialiasing at all, a hard pixel
+// staircase that crawled as you moved, plus single-pixel sparkles where two edges meet.
+const DPR = window.devicePixelRatio || 1;
+const EDGE_AA = 4;
+const QSET = {
+  // A DESKTOP never drops below its native pixels on a 1x screen: on a laptop iGPU the home
+  // went soft. A 2x laptop does go to 1.25 at the bottom.
+  // Shadows at EVERY level: switching them off recompiles every
+  // material (a 3.3 s freeze on an Intel UHD), and frameBudget redraws the map only when
+  // something moves, so they cost almost nothing per frame anyway.
+  low:    { pr: MOBILE ? 1 : Math.min(DPR, 1.25), shadow: 1024 },
+  medium: { pr: Math.min(DPR, 1.5), shadow: 1024 },
+  // >= 1.5x native on a 1x screen (supersampled), capped at 2.5 so a 4K panel stays usable
+  high:   { pr: Math.min(Math.max(DPR, 1.5), 2.5), shadow: 2048 },
+};
+const QUALITY = ['low', 'medium', 'high'];
+const QPIN = QUALITY.indexOf(PARAMS.get('quality'));
+const QSTART = QPIN >= 0 ? QPIN : MOBILE ? 1 : 2;
+let quality = QSTART;
+const composer = new EffectComposer(renderer,
+  new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: EDGE_AA }));
+// a GIVEN target sets the composer's size, and it was created 1x1: without this line the
+// whole frame rendered into 1.5 px
+composer.setSize(window.innerWidth, window.innerHeight);
+composer.addPass(new RenderPass(scene, camera));
+// ⚠️ NO SSAO. SSAOPass reads the camera's near, far and projection ONCE, when it is made, and
+// walking changes all three (near 0.1 -> 0.05, a 100 deg lens), so it rebuilt depth from the
+// wrong camera: measured with it on against off, it changed NO pixel in any room or from
+// outside. It only cost a second draw of the whole home every still frame (~4 ms of an M2's
+// GPU) and four screen-sized targets, and a working SSAO is a known source of dark halos
+// along exactly the edges this page must keep clean.
+composer.addPass(new OutputPass());
+// ⚠️ KEEP THE COMPOSER even with nothing between its two passes. Drawn straight to the canvas,
+// each glass pane is tone-mapped before it blends, which lays a milky veil over the view
+// through the windows and loses the lamps' glints in them (pixel A/B, kitchen).
+function setQuality(i) {
+  quality = i;
+  const q = QSET[QUALITY[i]];
+  renderer.setPixelRatio(q.pr);
+  composer.setPixelRatio(q.pr);
+  if (sun.shadow.mapSize.x !== q.shadow) {
+    sun.shadow.mapSize.set(q.shadow, q.shadow);
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;
+  }
+  renderer.shadowMap.needsUpdate = true;          // a new map size: draw it once (frameBudget)
+}
+// STEADY BEATS HIGH: (1) time only MOVING frames (orbit, zoom, walk) — a still frame is not
+// where smoothness is felt; (2) step down while moving frames miss the display
+// rate; (3) NEVER step back up: every step resizes the buffers (a visible hitch), and
+// up-then-down is a ping-pong a buyer sees as stutter. The bar is the DISPLAY's rate: the
+// shortest rAF interval seen is the refresh period.
+// ⚠️ THE BAR WAS 50: on a 60 Hz panel 50-55 fps passed, and that is the judder you feel (every
+// 5th or 6th frame shown twice). 95% of the refresh, capped at 57 so a 120 Hz screen only has
+// to hold 60.
+const gov = { last: 0, sum: 0, n: 0, slow: 0, downs: 0, fps: 0, from: 0, period: 1e9 };
+function govern(now) {
+  const dt = gov.last ? now - gov.last : 0;
+  gov.last = now;
+  if (dt > 2) gov.period = Math.min(gov.period, dt);
+  const GOV_MIN = Math.min(57, 0.95 * 1000 / gov.period);
+  if (QPIN >= 0 || document.hidden || !loadDone) { gov.from = 0; return; }
+  gov.from ||= now + 1000;       // shaders are compiled behind the loader; 1 s to settle
+  if (now < gov.from || !budget.moving || dt > 250) return;   // a stall is not a frame rate
+  gov.sum += dt;
+  gov.n++;
+  if (gov.sum < 500) return;                // 0.5 s of moving frames per verdict
+  gov.fps = gov.n * 1000 / gov.sum;
+  gov.sum = gov.n = 0;
+  gov.slow = gov.fps < GOV_MIN ? gov.slow + 1 : 0;
+  if (gov.slow >= 2 && quality > 0) { gov.downs++; gov.slow = 0; setQuality(quality - 1); }
+}
+window.__quality = () => ({ level: QUALITY[quality], start: QUALITY[QSTART], pinned: QPIN >= 0,
+  fps: Math.round(gov.fps), pr: renderer.getPixelRatio(),
+  shadows: renderer.shadowMap.enabled, msaa: composer.renderTarget1.samples });
+
+let currentScene = null;   // the loaded gltf.scene
+function frameOn(object3d) {
+  const box = new THREE.Box3().setFromObject(object3d);
+  const center = box.getCenter(new THREE.Vector3());
+  // A portrait phone sees a far narrower horizontal angle at the same vertical FOV, and the
+  // house ran off both sides: back off by the aspect.
+  const diag = box.getSize(new THREE.Vector3()).length() * Math.max(1, 0.85 / camera.aspect);
+  controls.target.copy(center);
+  // build3d puts the TOP of the printed sheet at +z, so look from -z (the sheet's bottom edge)
+  // and the house reads the way the plan is printed, not rotated 180°
+  if (VIEW === 'top') {
+    camera.position.set(center.x, center.y + diag * 1.2, center.z - 0.01);
+  } else {
+    camera.position.set(center.x + diag * 0.35, center.y + diag * 0.75, center.z - diag * 0.75);
+  }
+  controls.maxDistance = diag * 3;
+  camera.far = diag * 5;
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+const meshes = [];
+const roofParts = [];          // `roof:*` geometry — never shown: Outside is the home, roof off
+const ceilingParts = [];       // `ceiling:*` — shown only Inside
+// ⚠️ THE SEPARATOR IS GONE BY THE TIME WE SEE IT. three.js's GLTFLoader runs every node name
+// through PropertyBinding.sanitizeNodeName, which STRIPS `[ ] . : /` — so build3d's
+// `L1:roof:3` arrives here as `L1roof3`. Any namespace test that requires the colon matches
+// NOTHING, silently. Match the namespace WORD, separator optional, always via ns().
+const ns = (words) => new RegExp('^(l\\d+)?[:_.\\-]?(' + words + ')', 'i');
+const ROOF_RE = ns('roof');
+const CEILING_RE = ns('ceiling');
+// EXACTLY three.js PropertyBinding.sanitizeNodeName: whitespace to underscore FIRST, then
+// strip the reserved characters. Applied to layout.json's RAW names so lookups are equality.
+const SANE = (n) => (n || '').replace(/\s/g, '_').replace(/[\[\]\.:\/]/g, '');
+
+// STOREY PICKER. A stacked model can only ever show its TOP floor from above — the slab above
+// hides everything below it — so a multi-storey house needs one floor at a time.
+// Geometry is named `L0:`/`L1:` by build3d for this.
+const levelParts = new Map();   // "L0" -> [meshes]
+const levelBar = document.getElementById('levels');
+let curLevel = null;            // which storey the picker is on (null = all)
+function showLevel(sel) {       // null = all
+  curLevel = sel;
+  for (const [id, objs] of levelParts) {
+    for (const o of objs) {
+      if (roofParts.includes(o) || ceilingParts.includes(o)) continue;   // they have their own rules
+      o.visible = (sel === null || sel === id) && (furnOn || !FIXTURE_RE.test(o.name || ''));
+    }
+  }
+  applyCeilings();
+  if (sel !== null) for (const o of roofParts) o.visible = false;
+  for (const b of levelBar.children) b.classList.toggle('active', b.dataset.lv === String(sel));
+  if (walk.on) walk.shell = walkShell();
+  renderer.shadowMap.needsUpdate = true;
+}
+// THE CEILING IS FOR STANDING INSIDE. From above (the dollhouse) it would hide the whole home,
+// so it shows only in walk mode, and only on the storey being shown.
+// What HANGS from it (fixtures.CEILING_MATS: `ceiling:<room>:pendant` and `:light`, the dining
+// and island pendants) is furniture too, so it goes when the furniture is switched off.
+const HANGING_RE = /(pendant|light)$/i;
+function applyCeilings() {
+  const on = walk.on;
+  for (const o of ceilingParts) {
+    o.visible = on && (curLevel === null || o.userData.lv === undefined || o.userData.lv === curLevel)
+      && (furnOn || !HANGING_RE.test(o.name || ''));
+  }
+  // Inside, the daylight steps back so the warm lamps carry the room
+  hemi.intensity = on ? 0.3 : 0.75;
+  sun.intensity = on ? 0.5 : 1.7;
+  scene.environmentIntensity = on ? 0.4 : 0.9;
+  if (!on) for (const l of lampPool) l.intensity = 0;
+  lampsAt = null;
+  syncMerged();                                  // every visibility switch ends here
+}
+// ---- FEWER DRAWS. The build leaves ~650 meshes and three draws each on its own, ~370 a frame
+// from inside: on a slow phone that per-draw bookkeeping, not the GPU, sets the frame rate.
+// Static meshes that share a material, an 8 m square and the same switches (storey, furniture,
+// ceiling) are drawn as ONE mesh. The originals stay, undrawn, for everything that asks about
+// the home (walking into things, the minimap, the switches): their `visible` still says what
+// is there, and each merged mesh copies it.
+// m: a group never spans more than this. 8 m, measured against 4 m (84 draws a frame from the
+// living room) and the whole home (47): 62 draws, and the GPU still culls what is behind you
+const MERGE_CELL = 8;
+const merged = [];
+const syncMerged = () => { for (const m of merged) m.visible = m.userData.of[0].visible; };
+// a mesh's geometry in world space, every attribute plain float so any two merge
+function worldGeometry(o) {
+  const g = new THREE.BufferGeometry(), get = ['getX', 'getY', 'getZ', 'getW'];
+  for (const [k, a] of Object.entries(o.geometry.attributes)) {
+    const arr = new Float32Array(a.count * a.itemSize);   // de-quantized, de-interleaved
+    for (let i = 0; i < a.count; i++) for (let j = 0; j < a.itemSize; j++) arr[i * a.itemSize + j] = a[get[j]](i);
+    g.setAttribute(k, new THREE.BufferAttribute(arr, a.itemSize));
+  }
+  if (o.geometry.index) g.setIndex(new THREE.BufferAttribute(Uint32Array.from(o.geometry.index.array.subarray(0, o.geometry.index.count)), 1));
+  return g.applyMatrix4(o.matrixWorld);
+}
+function mergeStatic() {
+  const groups = new Map(), c = new THREE.Vector3();
+  for (const o of meshes) {
+    const n = o.name || '';
+    // a door swings and glass is sorted back to front per pane: both stay as they are
+    if (o.userData.door !== undefined || roofParts.includes(o) || o.material.transparent) continue;
+    const kind = CEILING_RE.test(n) ? (HANGING_RE.test(n) ? 'hang' : 'ceil') : FIXTURE_RE.test(n) ? 'furn' : 'home';
+    new THREE.Box3().setFromObject(o).getCenter(c);
+    const key = [o.material.uuid, kind, o.userData.lv, o.castShadow, o.receiveShadow, Math.floor(c.x / MERGE_CELL),
+                 Math.floor(c.z / MERGE_CELL), !!o.geometry.index, Object.keys(o.geometry.attributes).sort()].join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(o);
+  }
+  const undrawn = new THREE.Group();             // never in the scene
+  for (const of of groups.values()) {
+    if (of.length < 2) continue;
+    const g = mergeGeometries(of.map(worldGeometry));
+    if (!g) continue;
+    // three sorts a material's draws near to far by each mesh's ORIGIN: put it mid-group
+    g.computeBoundingBox();
+    const mid = g.boundingBox.getCenter(new THREE.Vector3());
+    g.translate(-mid.x, -mid.y, -mid.z);
+    const mesh = new THREE.Mesh(g, of[0].material);
+    mesh.position.copy(mid);
+    mesh.castShadow = of[0].castShadow;
+    mesh.receiveShadow = of[0].receiveShadow;
+    mesh.userData.of = of;
+    currentScene.add(mesh);
+    mesh.updateMatrixWorld();                    // the home's own matrix walk is off
+    merged.push(mesh);
+    for (const o of of) {
+      o.matrix.copy(o.matrixWorld);              // its world place, now that its parent is gone
+      o.matrixAutoUpdate = false;
+      undrawn.add(o);
+      o.geometry.dispose();                      // the GPU copy only: raycasts read the arrays
+    }
+  }
+  syncMerged();
+}
+// WARM LAMPS. A small FIXED pool of warm point lights rides the ceiling fittings nearest the
+// walker (layout.json `lamps`, from build3d), so every room glows yellow without a light per
+// fitting. Fixed, because changing the number of lights makes three.js recompile every shader.
+const LAMP_POOL = 6, LAMP_COLOR = 0xffc46e, LAMP_I = 9;
+const lampPool = [];
+for (let i = 0; i < LAMP_POOL; i++) {
+  const l = new THREE.PointLight(LAMP_COLOR, 0, 7, 2);
+  scene.add(l);
+  lampPool.push(l);
+}
+// PICTURE LIGHTS (layout.json `spots`, from build3d): a warm beam onto each painting a home's
+// plan.json hangs (source.art). Made once, before the shaders compile, and switched with the
+// furniture by intensity, for the same reason the lamp pool is fixed.
+const SPOT_I = 2.5, spots = [];
+function addSpots() {
+  for (const p of LAYOUT?.spots || []) {
+    const l = new THREE.SpotLight(LAMP_COLOR, furnOn ? SPOT_I : 0, 3, 0.8, 0.7, 2);
+    l.position.set(p[0], p[1], p[2]);
+    l.target.position.set(p[3], p[4], p[5]);
+    scene.add(l, l.target);
+    spots.push(l);
+  }
+}
+let lampsAt = null;
+function pickLamps() {          // each frame inside; re-picks only after a metre of walking
+  if (!walk.on || !LAYOUT?.lamps?.length) return;
+  const b = walk.body;
+  if (lampsAt && lampsAt.distanceToSquared(b) < 1) return;
+  lampsAt = b.clone();
+  const d2 = (p) => (p[0] - b.x) ** 2 + (p[2] - b.z) ** 2;
+  const near = LAYOUT.lamps.filter((p) => Math.abs(p[1] - b.y) < 2.5)   // this storey only
+    .sort((p, q) => d2(p) - d2(q)).slice(0, LAMP_POOL);
+  lampPool.forEach((l, i) => {
+    const p = near[i];
+    if (p) l.position.set(p[0], p[1] - 0.2, p[2]);
+    l.intensity = p ? LAMP_I : 0;
+  });
+}
+function buildLevelBar() {
+  levelBar.textContent = '';
+  if (levelParts.size < 2) return;
+  const ids = [...levelParts.keys()].sort();
+  const mk = (label, lv, title) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.lv = String(lv); b.title = title;
+    b.addEventListener('click', () => showLevel(lv));
+    levelBar.appendChild(b);
+    return b;
+  };
+  mk('All floors', null, 'Show the whole building').classList.add('active');
+  ids.forEach((id, i) => mk(`${i + 1}F`, id, `Show only storey ${i + 1}`));
+}
+const infoEl = document.getElementById('info');
+infoEl.textContent = HINT;
+const shadingBar = document.getElementById('shading');
+// OrbitControls listens on document.body and pointer-captures on pointerdown, which
+// otherwise eats the button's click — keep the bar's pointer events to itself
+shadingBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+// watchdog: if the model never finishes, say in the console what stage it stalled at
+let loadDone = false;
+setQuality(QSTART);
+const t0 = performance.now();
+const watchdog = setInterval(() => {
+  if (loadDone) return clearInterval(watchdog);
+  console.log('⏳ ' + ((performance.now() - t0) / 1000).toFixed(0) + 's: ' + loadTextEl.textContent + '  · GPU: ' + gpuInfo);
+}, 8000);
+
+// The web tier (webglb.py): KTX2 + meshopt. ⚠️ VRAM is what actually breaks a phone: PNG/JPEG
+// decode to RGBA8 on upload, KTX2 stays block-compressed. detectSupport() picks the format.
+const ktx2 = new KTX2Loader()
+  .setTranscoderPath('./vendor/three/addons/libs/basis/')
+  .detectSupport(renderer);
+const SIZES = {"model_web.glb": 2728284, "model.glb": 7764012, "./vendor/person.glb": 2029608, "./vendor/interior_env.bin": 699052};   // decoded .txt lengths: the host gzips, so Content-Length is no use
+function b64buf(t) { const s = atob(t), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b.buffer; }
+async function fetchText(url, onProgress) {
+  const r = await fetch(url + '.txt');
+  if (!r.ok) throw new Error(r.status + ' ' + url);
+  const rd = r.body.getReader(), parts = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    parts.push(value); got += value.length;
+    if (onProgress) onProgress({ loaded: got, total: SIZES[url] || 0 });
+  }
+  return new TextDecoder().decode(await new Blob(parts).arrayBuffer());
+}
+function loadGLB(url, onLoad, onProgress, onError) {
+  fetchText(url, onProgress).then(t => makeLoader().parse(b64buf(t), '', onLoad, onError), onError);
+}
+function makeLoader() {
+  return new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+}
+
+// layout.json: storeys + door hinges. No memo — it belongs to the model, cache-busted like it.
+let LAYOUT = null;
+async function loadLayout() {
+  try {
+    const r = await fetch('layout.json');
+    LAYOUT = r.ok ? await r.json() : null;
+  } catch (e) { LAYOUT = null; }
+  return LAYOUT;
+}
+
+function loadModel() {
+  const url = WEB ? 'model_web.glb' : 'model.glb';   // cache-bust
+  loadGLB(url, async (gltf) => {
+    loadDone = true; clearInterval(watchdog);
+    loadTextEl.textContent = 'Preparing…';
+    const MAXA = renderer.capabilities.getMaxAnisotropy();  // sharpen textures at grazing angles
+    gltf.scene.traverse((o) => {
+      // THE KTX2 BUILD WRAPS EVERY MESH. gltfpack gives the NODE the real name and the mesh
+      // inside it none, so three.js names the child `<name>_1`. Everything here looks pieces up
+      // by name (walk collision, doors, the storey picker), so hand the mesh its parent's name.
+      if (o.isMesh && o.parent && o.parent !== gltf.scene && o.parent.type === 'Object3D'
+          && o.name === o.parent.name + '_1') o.name = o.parent.name;
+      if (o.isMesh && o.material) {
+        const m = o.material;
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+          const t = m[key];
+          if (!t) continue;
+          t.anisotropy = MAXA;                 // kills the blurry floor/wall look at angles
+          if (key === 'map') t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.needsUpdate = true;
+        }
+        m.side = THREE.DoubleSide;
+        // ...and three draws a double-sided TRANSPARENT material twice, back faces then front,
+        // flagging it dirty for each: 40 shader-program lookups a frame for the 20 glass panes,
+        // plus garbage for the collector. The glass has no normals, so GLTFLoader flat-shades
+        // it and both faces shade alike: one pass blends to the same pixels.
+        if (m.transparent && m.flatShading) m.forceSinglePass = true;
+        o.castShadow = true;
+        o.receiveShadow = true;
+        // No roof, ever: this is a walkthrough product, and a roof hides everything.
+        if (o.name && ROOF_RE.test(o.name)) {
+          o.visible = false;
+          roofParts.push(o);
+        }
+        // and it never casts shadow, or the sun would leave every room in the dark
+        if (o.name && CEILING_RE.test(o.name)) {
+          o.visible = false;
+          o.castShadow = false;
+          ceilingParts.push(o);
+        }
+        // separator optional — sanitizing turns `L0:wall:eb` into `L0walleb`
+        const lm = o.name && o.name.match(/^(L\d+)[:_.\-]?/i);
+        if (lm) {
+          const k = lm[1].toUpperCase();
+          o.userData.lv = k;
+          if (!levelParts.has(k)) levelParts.set(k, []);
+          levelParts.get(k).push(o);
+        }
+        meshes.push(o);
+      }
+    });
+    buildLevelBar();
+    applyFurniture();
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new THREE.Vector3()).length();
+    const c = box.getCenter(new THREE.Vector3());
+    // THE GROUND GRID, sized to this home: square metre cells, dropped 1 cm so it cannot
+    // z-fight the floor slab.
+    const span = Math.ceil(Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 2.2);
+    grid = new THREE.GridHelper(span, span, 0x5a5a5a, 0x333333);
+    grid.position.set(c.x, box.min.y - 0.01, c.z);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.65;
+    grid.material.depthWrite = false;      // never occlude the model it sits under
+    scene.add(grid);
+    // fit the sun's shadow camera to the model so shadows aren't blurry mush
+    sun.position.set(c.x + size * 0.5, c.y + size * 0.9, c.z + size * 0.4);
+    sun.target.position.copy(c);
+    scene.add(sun.target);
+    const s = sun.shadow.camera;
+    s.left = s.bottom = -size * 0.7; s.right = s.top = size * 0.7;
+    s.near = 0.5; s.far = size * 3;
+    s.updateProjectionMatrix();
+    renderer.shadowMap.needsUpdate = true;
+    scene.add(gltf.scene);
+    currentScene = gltf.scene;
+    scene.updateMatrixWorld(true);
+    frameOn(gltf.scene);
+    await loadLayout();
+    addSpots();
+    const byName = new Map();
+    for (const o of meshes) byName.set(SANE(o.name), o);
+    setupDoors(byName);
+    // THE HOME NEVER MOVES (the doors swing on pivots outside it), and three walks its whole tree
+    // twice a frame, for matrices and again for culling. gltfpack wraps every mesh in an empty
+    // node, doubling that tree to ~1400: lift each mesh out of its wrapper (same world place),
+    // drop the wrapper, and skip the matrix walk outright.
+    for (const o of meshes) {
+      const w = o.parent;
+      if (o.userData.door !== undefined || w === currentScene || w.isMesh || w.children.length !== 1) continue;
+      const world = o.matrixWorld.clone();
+      currentScene.add(o);                        // the gltf root sits at the origin
+      o.matrixAutoUpdate = false;                 // the matrix as is: no lossy re-decompose
+      o.matrix.copy(world);
+      w.removeFromParent();
+    }
+    currentScene.updateMatrixWorld = () => {};
+    mergeStatic();
+    setupWalk();
+    // THE FIRST FRAMES WERE THE SLOW ONES: compile every shader and upload every texture
+    // behind the loader, not in view (a 249 ms frame on the first orbit, measured).
+    try { await renderer.compileAsync(scene, camera); } catch (e) { /* the first frame compiles */ }
+    const texs = new Set();
+    scene.traverse((o) => { for (const m of [].concat(o.material || [])) for (const v of Object.values(m)) if (v?.isTexture) texs.add(v); });
+    for (const t of texs) try { renderer.initTexture(t); } catch (e) {}
+    // every KTX2 map is transcoded and uploaded: the 4 transcoder workers (a WASM heap each)
+    // would otherwise idle in RAM for the whole visit. person.glb has no KTX2.
+    ktx2.dispose();
+    composer.render();
+    loadingEl.style.display = 'none';
+    dispatchEvent(new Event('modelshown'));
+  }, (ev) => {
+    if (ev.total) {
+      const pct = Math.min(100, ev.loaded / ev.total * 100);
+      loadFillEl.style.width = pct.toFixed(0) + '%';
+      loadTextEl.textContent = pct < 99.5 ? 'Loading 3D model… ' + pct.toFixed(0) + '%' : 'Preparing…';
+    } else {
+      loadTextEl.textContent = 'Loading 3D model… ' + (ev.loaded / 1048576).toFixed(1) + ' MB';
+    }
+  }, (err) => {
+    if (WEB) { WEB = false; return loadModel(); }   // KTX2/meshopt refused here: plain model
+    loadDone = true; clearInterval(watchdog);
+    loadTextEl.textContent = 'Error loading model';
+    DIAG('❌ GLTF load failed: ' + (err?.message || err) + '\n   GPU: ' + gpuInfo);
+  });
+}
+
+// ⚠️ "AWAY FROM THE BUILDING'S CENTRE" IS NOT "TOWARD THE VIEW": a room is often recessed into
+// the footprint, so the outward direction runs straight into the wall beside it. The open
+// side is a fact about the geometry, so ask the geometry — cast around the compass and take
+// the direction that stays clear longest.
+// `toward`: only look that way or square to it (from the front door: into the home, never
+// back out through the open door at the sky)
+function bestOutward(c, eyeY, toward) {
+  const shell = meshes.filter(o => o.visible);
+  const home = new THREE.Box3().setFromObject(currentScene).getCenter(new THREE.Vector3());
+  const away = toward ? toward.clone() : new THREE.Vector3(c.x - home.x, 0, c.z - home.z);
+  if (away.lengthSq() < 1e-6) away.set(0, 0, 1);
+  away.normalize();
+  const rc = new THREE.Raycaster();
+  rc.far = 60;
+  const cands = [];
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    rc.set(new THREE.Vector3(c.x, eyeY, c.z), dir);
+    const hit = rc.intersectObjects(shell, false)[0];
+    if (!toward || dir.dot(away) > -0.01)
+      cands.push({ dir, clear: hit ? hit.distance : Infinity, dot: dir.dot(away) });
+  }
+  // "open" saturates at 25 m — past that it is sky either way
+  const score = (k) => Math.min(k.clear, 25);
+  const best = Math.max(...cands.map(score));
+  return cands.filter(k => score(k) >= best - 0.5).sort((a, b) => b.dot - a.dot)[0];
+}
+// AT EYE LEVEL THE BACKDROP IS THE WORLD: through a window the dollhouse void read as flat
+// grey. Ground + sky are created once, the first time you walk in, and stay.
+let ground = null, skyTex = null;
+function makeSky() {
+  const cv = document.createElement('canvas');
+  cv.width = 8; cv.height = 128;
+  const g = cv.getContext('2d').createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0.00, '#8fb6de');            // zenith
+  g.addColorStop(0.48, '#cfe0ef');            // haze
+  g.addColorStop(0.52, '#c8c3bb');            // horizon band
+  g.addColorStop(1.00, '#9a938a');            // ground haze
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 128);
+  const t = new THREE.CanvasTexture(cv);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function addWorld() {
+  if (ground) return;
+  const box = new THREE.Box3().setFromObject(currentScene);
+  const r = Math.max(120, box.getSize(new THREE.Vector3()).length() * 6);
+  ground = new THREE.Mesh(
+    new THREE.CircleGeometry(r, 48).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x9c9689, roughness: 1.0, metalness: 0 }));
+  ground.position.y = box.min.y - 0.02;        // just under the plinth, never z-fighting it
+  ground.receiveShadow = true;
+  scene.add(ground);
+  skyTex = makeSky();
+  scene.background = skyTex;
+  if (grid) grid.visible = false;              // the workbench grid would float at the horizon
+  // NATURE THROUGH THE WINDOWS: a CC0 meadow panorama (assets/CREDITS.md) replaces the gradient
+  // once it arrives; the gradient stays on a 404. Dimmed, or exposure 1.7 washes it out.
+  // ⚠️ NOT scene.background: three turns an equirect background into a cube with 2048 px faces
+  // plus mips (~134 MB) and keeps the 4096 px source beside it. It is drawn straight from the
+  // source instead, on a sphere round the eye that everything else draws over (~45 MB), and
+  // sampled once rather than resampled into a cube first. (A 1024 cube saved more, but softened
+  // the trees through the windows, and without mips the foliage shimmers.) Decoded off the main
+  // thread.
+  new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' }).load('./vendor/nature.jpg', (img) => {
+    const t = new THREE.Texture(img);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.flipY = false;                            // the bitmap is already flipped
+    t.wrapS = THREE.RepeatWrapping;
+    t.repeat.x = -1;                            // seen from INSIDE the sphere: east is on the left
+    t.needsUpdate = true;
+    sky = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), new THREE.MeshBasicMaterial(
+      { map: t, side: THREE.BackSide, depthTest: false, depthWrite: false }));
+    sky.material.color.setScalar(NATURE_I);     // what backgroundIntensity did
+    sky.renderOrder = -1e9;                     // drawn first, behind everything, like a background
+    sky.frustumCulled = false;
+    scene.add(sky);
+    scene.background = null;
+  });
+  scene.backgroundIntensity = NATURE_I;         // the gradient's, until the panorama is in
+}
+let sky = null;                                 // follows the eye (animate)
+const NATURE_I = parseFloat(PARAMS.get('nature')) || 0.6;   // ?nature= to tune it by eye
+// for checks that look at the model: put the camera somewhere and aim it
+window.__cam = (x, y, z, tx, ty, tz) => {
+  camera.position.set(x, y, z); controls.target.set(tx, ty, tz); camera.updateProjectionMatrix(); controls.update();
+};
+
+// WALK MODE — stand inside at eye height and move room to room. OrbitControls is switched
+// off and the camera is driven directly (yaw/pitch, 'YXZ'), so controls.update() must not
+// run while walking or it would drag the camera back onto its orbit target.
+// Desktop plays like a first-person game: click to grab the mouse, the mouse looks, WASD moves
+// relative to the view, Shift runs, ←/→ turn. Touch: left thumb moves, right thumb looks.
+// Speed and look both EASE toward what the input asks for, so starting, stopping and turning
+// are smooth rather than instant.
+// Collision: walls/glass by raycast at knee + chest. Doors never block: they swing open as you
+// come up to them and close behind you (autoDoors).
+// STAIRS: the walker follows the ground. Every step casts down onto floors and stair treads;
+// a rise up to STEP_UP is climbed, a drop up to STEP_DOWN is stepped down, and anything else
+// stops you like a wall — so you climb a flight tread by tread (0.18 m risers) and can never
+// walk off a landing into the stairwell. Arriving on another storey while the picker shows
+// one storey switches the picker with you.
+const insideBtn = document.getElementById('insidebtn'), outsideBtn = document.getElementById('outsidebtn');
+// three.js fov is VERTICAL, so the lens is set by its HORIZONTAL angle. 75 deg felt like
+// walking with your face to the wall: every wall you passed filled the screen. 100 deg is a
+// game's first-person lens, wide enough to keep the room around you in view.
+const WALK_HFOV = 100;
+function walkFov() {
+  const v = 2 * Math.atan(Math.tan(WALK_HFOV * Math.PI / 360) / camera.aspect) * 180 / Math.PI;
+  return Math.min(80, v);
+}
+const EYE = 1.6, BODY = 0.3;                     // m above the slab, m to a wall
+const SPEED = 2.6, RUN = 4.6;                    // m/s walking, and with Shift held
+const ACCEL = 9, LOOK_EASE = 18;                 // 1/s: how fast speed and view catch up
+const LOOK = 0.0022;                             // radians per pixel of mouse movement
+const BOB = 0.022;                               // m of head bob at full walking speed
+const STEP_UP = 0.3, STEP_DOWN = 0.35;           // one riser is 0.18 (build3d RISER), with slack
+const FLOOR_RE = ns('floor'), DOOR_RE = ns('door'), STAIR_RE = ns('stair'), WALL_RE = ns('wall');
+const OUTDOOR_RE = /balcon|terrace|deck|porch|veranda|sitout/i;
+// yaw/pitch is what the camera shows, yawT/pitchT what the input asked for (it eases there)
+const walk = { on: false, auto: false, yaw: 0, pitch: 0, yawT: 0, pitchT: 0, keys: new Set(),
+               move: null, look: null, shell: [], ground: [], feet: 0, lv: null, moving: false,
+               vel: new THREE.Vector3(), bob: 0,
+               body: new THREE.Vector3() };   // body = the walker's EYE point
+function setLook(yaw, pitch) { walk.yaw = walk.yawT = yaw; walk.pitch = walk.pitchT = pitch; }
+// what you bump into: never a door (they open as you reach them) and never a ceiling
+const solid = (o) => !DOOR_RE.test(o.name || '') && !CEILING_RE.test(o.name || '');
+const walkShell = () => meshes.filter(o => o.visible && solid(o));
+// ---- COLLISION GRID. A step's rays are half a metre long, but three's Raycaster walks EVERY
+// triangle of a mesh whose bounding sphere holds the ray's start, and build3d merges a room's
+// furniture per material into one room-sized mesh: in a room, every ray tested the whole sofa,
+// table and plants (a quarter of all CPU on a 6x-throttled walk, measured; a phone has no
+// quarter to spare). So the shell is cut once into 1 m squares of its own triangles (the same
+// vertex buffers, a new index) and a step casts only at the squares around the body.
+const HIT_CELL = 1;                               // m; longer than any step's ray (step + BODY)
+const hitGrid = new Map();                        // "i,j" -> [pieces], each knows its .src mesh
+function buildHitGrid() {
+  const v = new THREE.Vector3();
+  for (const o of meshes) {
+    if (!solid(o) || roofParts.includes(o)) continue;
+    const pos = o.geometry.attributes.position, idx = o.geometry.index;
+    o.updateWorldMatrix(true, false);
+    const ci = new Float32Array(pos.count), cj = new Float32Array(pos.count);   // each vertex's square
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      ci[i] = Math.floor(v.x / HIT_CELL); cj[i] = Math.floor(v.z / HIT_CELL);
+    }
+    const cells = new Map();
+    for (let t = 0, n = idx ? idx.count : pos.count; t < n; t += 3) {
+      const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+      // every square the triangle's footprint covers: a wall face spans several
+      for (let i = Math.min(ci[a], ci[b], ci[c]); i <= Math.max(ci[a], ci[b], ci[c]); i++)
+        for (let j = Math.min(cj[a], cj[b], cj[c]); j <= Math.max(cj[a], cj[b], cj[c]); j++) {
+          const k = i + ',' + j;
+          if (!cells.has(k)) cells.set(k, []);
+          cells.get(k).push(a, b, c);
+        }
+    }
+    for (const [k, tri] of cells) {
+      const piece = new THREE.BufferGeometry();
+      piece.setAttribute('position', pos);
+      piece.setIndex(tri);
+      // its OWN bounds: computeBoundingBox() would measure every vertex of the shared buffer
+      piece.boundingBox = new THREE.Box3();
+      for (const i of tri) piece.boundingBox.expandByPoint(v.fromBufferAttribute(pos, i));
+      piece.boundingSphere = piece.boundingBox.getBoundingSphere(new THREE.Sphere());
+      const m = new THREE.Mesh(piece, o.material);
+      m.matrixWorld.copy(o.matrixWorld);          // never in the scene, so placed once, here
+      m.userData.src = o;
+      m.userData.box = piece.boundingBox.clone().applyMatrix4(o.matrixWorld);   // world, for walkBlocked
+      if (!hitGrid.has(k)) hitGrid.set(k, []);
+      hitGrid.get(k).push(m);
+    }
+  }
+}
+// the pieces a step can reach, of the meshes that are there now (walkShell's `visible`: the
+// furniture switch and the storey picker)
+function nearShell() {
+  const i0 = Math.floor(walk.body.x / HIT_CELL), j0 = Math.floor(walk.body.z / HIT_CELL), out = [];
+  for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++)
+    for (const m of hitGrid.get(i + ',' + j) || []) if (m.userData.src.visible) out.push(m);
+  return out;
+}
+// what you stand on, on EVERY storey (a hidden one too: the picker follows you up the stairs)
+const walkGround = () => meshes.filter(o => !roofParts.includes(o)
+  && (FLOOR_RE.test(o.name || '') || STAIR_RE.test(o.name || '')));
+const downRay = new THREE.Raycaster(), DOWN = new THREE.Vector3(0, -1, 0), nrm = new THREE.Vector3();
+// Cast from head height, not from just above the feet: a stair is solid blocks, and a probe
+// starting INSIDE a tall one hit its underside from within and read it as floor. Now the
+// first surface down must face UP (else you are inside a solid) and sit within a step of the
+// feet (else it is something at body height, or a drop).
+function groundAt(x, z, feet) {
+  const top = feet + EYE + 0.2;
+  downRay.set(new THREE.Vector3(x, top, z), DOWN);
+  downRay.far = EYE + 0.2 + STEP_DOWN;
+  const hit = downRay.intersectObjects(walk.ground, false)[0];
+  if (!hit) return null;
+  if (nrm.copy(hit.face.normal).transformDirection(hit.object.matrixWorld).y < 0.5) return null;
+  const y = hit.point.y;
+  if (y > feet + STEP_UP || y < feet - STEP_DOWN) return null;
+  return { y, lv: hit.object.userData.lv || null };
+}
+const walkRay = new THREE.Raycaster();
+function startRoom() {
+  // the biggest indoor slab on the lowest VISIBLE storey — almost always the living room
+  const slabs = [];
+  for (const o of meshes) {
+    if (!o.visible || !FLOOR_RE.test(o.name || '') || OUTDOOR_RE.test(o.name)) continue;
+    slabs.push(new THREE.Box3().setFromObject(o));
+  }
+  if (!slabs.length) return null;
+  const low = Math.min(...slabs.map(b => b.min.y));
+  const area = (b) => (b.max.x - b.min.x) * (b.max.z - b.min.z);
+  return slabs.filter(b => b.min.y < low + 0.5).sort((a, b) => area(b) - area(a))[0];
+}
+// THE ROOM'S MIDDLE IS WHERE THE COFFEE TABLE IS: build3d furnishes rooms (fixtures.py), and
+// the walker and the Person figure both started dead centre, standing on the table. Walk out
+// from the centre to the nearest spot with floor under the body and no fixture on it.
+const FIXTURE_RE = ns('fixture');
+function freeSpot(box) {
+  const c = box.getCenter(new THREE.Vector3());
+  const fx = meshes.filter(o => FIXTURE_RE.test(o.name || ''));
+  if (!fx.length) return c;
+  const floors = meshes.filter(o => o.visible && FLOOR_RE.test(o.name || ''));
+  const rc = new THREE.Raycaster(), top = box.max.y + 3;
+  rc.far = 3.2;
+  const hits = (x, z, objs) => { rc.set(new THREE.Vector3(x, top, z), DOWN); return rc.intersectObjects(objs, false).length > 0; };
+  const clear = (x, z) => hits(x, z, floors)
+    && [[0, 0], [BODY, 0], [-BODY, 0], [0, BODY], [0, -BODY]].every(([dx, dz]) => !hits(x + dx, z + dz, fx));
+  for (let r = 0; r <= 3; r += 0.25) {
+    for (let k = 0; k < (r ? 16 : 1); k++) {
+      const x = c.x + r * Math.cos(k * Math.PI / 8), z = c.z + r * Math.sin(k * Math.PI / 8);
+      if (clear(x, z)) return new THREE.Vector3(x, c.y, z);
+    }
+  }
+  return c;
+}
+function aimWalk() {
+  camera.rotation.set(walk.pitch, walk.yaw, 0, 'YXZ');
+  placeWalkCam();
+}
+// The camera IS the eye, with a small head bob while you move (it fades out as you stop).
+function placeWalkCam() {
+  camera.position.copy(walk.body);
+  const pace = Math.min(1, walk.vel.length() / SPEED);
+  camera.position.y += Math.sin(walk.bob) * BOB * pace;
+  applyPerson();
+}
+function setWalk(on) {
+  const box = on ? startRoom() : null;
+  if (on && !box) return;
+  walk.on = on;
+  applyCeilings();
+  controls.enabled = !on;
+  insideBtn.classList.toggle('active', on);
+  outsideBtn.classList.toggle('active', !on);
+  walk.vel.set(0, 0, 0);
+  whereId = null;
+  whereEl.classList.remove('on');
+  if (!on) {
+    // outside, the ground plane is back under the home; inside it would hide the panorama's
+    // own grass under a flat disc at eye level
+    if (ground) ground.visible = true;
+    miniShow(false);
+    if (document.pointerLockElement) document.exitPointerLock();
+    for (const d of doors) if (!d.closed) swingDoor(d, true);   // the dollhouse shows them shut
+  }
+  if (on) {
+    addWorld();                                 // windows look out at nature, not the grey void
+    ground.visible = false;
+    walk.shell = walkShell();
+    walk.ground = walkGround();
+    // YOU WALK IN THROUGH THE FRONT DOOR: start OUTSIDE it (build3d's `entrance`), on the foyer
+    // slab, facing the shut door; it opens (within AUTO_DOOR) as you walk up to it. With
+    // nothing to stand on out there, start just inside it instead, facing the longest view
+    // into the home (a narrow foyer's far wall is 1.5 m away). A home without one starts in its
+    // biggest room, facing its longest view. Either way, never through a wall: the ray stops
+    // short of it.
+    const e = LAYOUT && LAYOUT.entrance;
+    let ex, ez, eg, side;
+    for (side of e ? [-1, 1] : []) {
+      const dir = new THREE.Vector3(e.inward[0] * side, 0, e.inward[1] * side);
+      walkRay.set(new THREE.Vector3(e.centre[0], box.max.y + EYE, e.centre[1]), dir);
+      walkRay.far = AUTO_DOOR + 0.2;
+      const hit = walkRay.intersectObjects(walk.shell, false)[0];
+      const far = hit ? Math.max(0.6, hit.distance - BODY) : AUTO_DOOR + 0.1;
+      // and only as far back as the floor goes, a body's width short of its edge: Aranyam's
+      // foyer slab is 1.8 m deep and open on that side, so no ray stops at its edge
+      let k = 0;
+      for (let t = 0.6; t <= far + 1e-6; t += 0.05) {
+        if (!groundAt(e.centre[0] + dir.x * (t + BODY), e.centre[1] + dir.z * (t + BODY), box.max.y)) break;
+        k = t;
+      }
+      if (!k) continue;
+      ex = e.centre[0] + dir.x * k;
+      ez = e.centre[1] + dir.z * k;
+      eg = groundAt(ex, ez, box.max.y);
+      if (eg) break;
+    }
+    const c = eg ? new THREE.Vector3(ex, 0, ez) : freeSpot(box);
+    const feet = eg ? eg.y : box.max.y, eye = feet + EYE;
+    walk.body.set(c.x, eye, c.z);
+    walk.feet = feet;
+    walk.lv = groundAt(c.x, c.z, walk.feet)?.lv ?? null;
+    const inward = eg && new THREE.Vector3(e.inward[0], 0, e.inward[1]);
+    const d = eg && side < 0 ? inward : bestOutward(c, eye, inward).dir;
+    setLook(Math.atan2(-d.x, -d.z), 0);
+    camera.fov = walkFov(); camera.near = 0.05;
+    camera.updateProjectionMatrix();
+    aimWalk();
+    miniShow(true);
+    whereAmI();                                  // the room you start in
+    infoEl.textContent = MOBILE ? 'Left thumb moves · right thumb looks'
+      : 'Click to look with the mouse · W A S D to move · Shift to run · Esc to let go';
+  } else {
+    walk.keys.clear(); walk.move = walk.look = null;
+    camera.fov = 55;
+    frameOn(currentScene);
+    placePerson();                               // back to its spot for the orbit view
+    infoEl.textContent = HINT;
+  }
+}
+const hitAt = new THREE.Vector3();
+function walkBlocked(dir, step, near) {
+  walkRay.far = step + BODY;
+  const r = walkRay.ray;
+  for (const h of [0.5, 1.2]) {                  // knee + chest: a sill or worktop stops you
+    walkRay.set(new THREE.Vector3(walk.body.x, walk.feet + h, walk.body.z), dir);
+    // only pieces the ray's short span reaches: three tests a box against the whole endless
+    // ray, so a plant a metre ahead still cost its every triangle
+    const reach = near.filter((m) => !m.userData.box || m.userData.box.containsPoint(r.origin)
+      || (r.intersectBox(m.userData.box, hitAt) && hitAt.distanceTo(r.origin) <= walkRay.far));
+    if (walkRay.intersectObjects(reach, false).length) return true;
+  }
+  return false;
+}
+// the check for the grid: random short rays from random spots, the grid's answer against the
+// whole shell's. -> how many disagree (want 0)
+window.__hitCheck = (n = 3000) => {
+  const keep = walk.body.clone(), b = new THREE.Box3().setFromObject(currentScene), dir = new THREE.Vector3();
+  let diff = 0;
+  for (let i = 0; i < n; i++) {
+    walk.body.set(b.min.x + Math.random() * (b.max.x - b.min.x), 0, b.min.z + Math.random() * (b.max.z - b.min.z));
+    const a = Math.random() * Math.PI * 2, step = Math.random() * 0.25;
+    dir.set(Math.cos(a), 0, Math.sin(a));
+    if (walkBlocked(dir, step, walk.shell) !== walkBlocked(dir, step, nearShell())) diff++;
+  }
+  walk.body.copy(keep);
+  return diff;
+};
+// dt: animate's smoothed frame time (an uneven stride reads as judder)
+function stepWalk(dt) {
+  if (!walk.on) return;
+  walk.moving = false;                           // set again below when a step is taken
+  easeWalkY(dt);
+  autoDoors();
+  const k = walk.keys;
+  const turn = (k.has('arrowleft') ? 1 : 0) - (k.has('arrowright') ? 1 : 0);
+  if (turn) walk.yawT += turn * 2.2 * dt;
+  // the view eases onto where the mouse / thumb / arrows point it
+  const ease = Math.min(1, dt * LOOK_EASE);
+  walk.yaw += (walk.yawT - walk.yaw) * ease;
+  walk.pitch += (walk.pitchT - walk.pitch) * ease;
+  let f = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
+  let r = (k.has('d') ? 1 : 0) - (k.has('a') ? 1 : 0);
+  if (walk.move) { f -= walk.move.dy; r += walk.move.dx; }   // thumbstick, -1..1 each
+  const s = Math.sin(walk.yaw), c = Math.cos(walk.yaw);
+  const want = new THREE.Vector3(-s * f + c * r, 0, -c * f - s * r);
+  if (want.lengthSq() > 1) want.normalize();
+  want.multiplyScalar(k.has('shift') ? RUN : SPEED);
+  // speed eases toward what the keys ask for: no instant start, no dead stop
+  walk.vel.lerp(want, Math.min(1, dt * ACCEL));
+  if (walk.vel.lengthSq() < 1e-4) { walk.vel.set(0, 0, 0); aimWalk(); return; }
+  const step = walk.vel.length() * dt, d = walk.vel.clone().normalize(), near = nearShell();
+  // straight on, else slide along whichever axis is free — stopping dead at every glancing
+  // wall contact feels like being stuck
+  for (const v of [d, new THREE.Vector3(d.x, 0, 0), new THREE.Vector3(0, 0, d.z)]) {
+    if (v.lengthSq() < 1e-6) continue;
+    const vs = step * v.length();                // a slide moves at the speed along the wall
+    v.normalize();
+    if (walkBlocked(v, vs, near)) continue;
+    // the feet stand on the ground UNDER them; the ground a body-radius AHEAD only has to
+    // exist, so a drop is refused before you are over it
+    const nx = walk.body.x + v.x * vs, nz = walk.body.z + v.z * vs;
+    const g = groundAt(nx, nz, walk.feet);
+    if (!g || !groundAt(nx + v.x * 0.15, nz + v.z * 0.15, g.y)) continue;   // a stairwell, a drop, outside
+    walk.body.addScaledVector(v, vs);
+    walk.moving = true;
+    walk.feet = g.y;
+    walk.bob += vs * 3.4;                          // ~2 steps per metre
+    if (g.lv !== walk.lv) arriveOn(g.lv);
+    whereAmI();
+    aimWalk();
+    return;
+  }
+  walk.vel.set(0, 0, 0);                           // boxed in: stop rather than push
+  aimWalk();
+}
+// the eye eases onto the new floor height instead of jolting 0.18 m every tread
+function easeWalkY(dt) {
+  const target = walk.feet + EYE, dy = target - walk.body.y;
+  if (Math.abs(dy) < 1e-3) return;
+  walk.body.y += dy * Math.min(1, dt * 10);
+  placeWalkCam();
+}
+// ---- MINIMAP. Drawn from the meshes themselves — floor triangles, wall boxes, stair blocks
+// of the storey you stand on — in WORLD x/z, so it is the picture the viewer shows (no second
+// mapping from plan.json to get wrong; the plan->world map is a reflection). The base is
+// cached per storey; only the "you are here" wedge is redrawn each frame.
+const mini = document.createElement('canvas');
+mini.id = 'mini';
+mini.style.display = 'none';
+mini.setAttribute('role', 'img');
+mini.setAttribute('aria-label', 'Minimap: the floor you are on, and where you stand');
+document.body.appendChild(mini);
+const miniBase = document.createElement('canvas');
+const MINI = { lv: undefined, minx: 0, minz: 0, s: 1, k: 1, ox: 0, oy: 0, px: 0, py: 0, yaw: NaN, room: null };
+function miniBuild() {
+  const ms = meshes.filter((o) => !roofParts.includes(o) && (walk.lv == null || o.userData.lv === walk.lv)
+    && (FLOOR_RE.test(o.name || '') || WALL_RE.test(o.name || '') || STAIR_RE.test(o.name || '')));
+  const all = new THREE.Box3();
+  for (const o of ms) all.expandByObject(o);
+  MINI.lv = walk.lv;
+  MINI.yaw = NaN;                                  // a new base: the next miniDraw must paint
+  if (all.isEmpty()) return;
+  const W = mini.width, pad = W * 0.06, sx = all.max.x - all.min.x || 1, sz = all.max.z - all.min.z || 1;
+  // THE PANEL TAKES THE PLAN'S SHAPE, up to a square: a wide flat was a strip across an empty
+  // square box
+  const H = Math.round(Math.min(W, (W - 2 * pad) * sz / sx + 2 * pad));
+  mini.height = H;
+  mini.style.height = H / MINI.k + 'px';
+  // TURNED 180 DEGREES so it reads like the printed sheet (build3d puts the sheet's top at +z
+  // and its right at -x): world -x is the map's right, world +z its top
+  MINI.s = Math.min((W - 2 * pad) / sx, (H - 2 * pad) / sz);
+  MINI.ox = pad + ((W - 2 * pad) - sx * MINI.s) / 2 + all.max.x * MINI.s;
+  MINI.oy = pad + ((H - 2 * pad) - sz * MINI.s) / 2 + all.max.z * MINI.s;
+  miniBase.width = W;
+  miniBase.height = H;
+  const g = miniBase.getContext('2d');
+  const X = (x) => -x * MINI.s + MINI.ox, Y = (z) => -z * MINI.s + MINI.oy, v = new THREE.Vector3();
+  g.fillStyle = 'rgba(236,233,226,.30)';
+  for (const o of ms) {
+    if (!FLOOR_RE.test(o.name || '')) continue;
+    const pos = o.geometry.attributes.position, idx = o.geometry.index;
+    o.updateWorldMatrix(true, false);
+    const at = (i) => { v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); return [X(v.x), Y(v.z)]; };
+    g.beginPath();
+    const n = idx ? idx.count : pos.count;
+    for (let t = 0; t < n; t += 3) {
+      const a = at(idx ? idx.getX(t) : t), b = at(idx ? idx.getX(t + 1) : t + 1), c = at(idx ? idx.getX(t + 2) : t + 2);
+      // ⚠️ THE TOP FACE ONLY. A floor is a slab: its underside projects onto the same spot
+      // wound the other way, and the nonzero fill cancelled the two, so no floor ever showed.
+      if ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) <= 0) continue;
+      g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.closePath();
+    }
+    g.fill();
+  }
+  const box = new THREE.Box3();
+  for (const o of ms) {
+    const stair = STAIR_RE.test(o.name || '');
+    if (!stair && !WALL_RE.test(o.name || '')) continue;
+    box.setFromObject(o);
+    g.fillStyle = stair ? 'rgba(236,233,226,.55)' : 'rgba(255,255,255,.92)';
+    g.fillRect(X(box.max.x), Y(box.max.z), Math.max(1, (box.max.x - box.min.x) * MINI.s),
+               Math.max(1, (box.max.z - box.min.z) * MINI.s));
+  }
+  // WHICH ROOM IS WHICH (layout.json `rooms`): small and quiet, and only the main rooms. A
+  // name in every toilet and store crowded the map; the banner names those as you walk in.
+  const fs = Math.max(8, Math.round(W * 0.03));
+  g.font = `500 ${fs}px "Inter Tight", system-ui, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = fs * 0.5;
+  g.fillStyle = 'rgba(255,255,255,.8)';
+  for (const r of (LAYOUT?.rooms || [])) {
+    if ((walk.lv != null && r.lv !== walk.lv) || r.w * r.d < MINI_LABEL_M2) continue;
+    const room = r.w * MINI.s;
+    let t = r.name;
+    if (g.measureText(t).width > room * 0.9) t = r.short;
+    if (g.measureText(t).width > room * 0.9 || r.d * MINI.s < fs * 1.5) continue;
+    g.fillText(t, X(r.x), Y(r.z));
+  }
+  g.shadowBlur = 0;
+}
+const MINI_LABEL_M2 = 9;           // a room smaller than this goes unnamed on the map
+function miniDraw() {
+  if (mini.style.display === 'none') return;
+  if (MINI.lv !== walk.lv) miniBuild();
+  const X = (x) => -x * MINI.s + MINI.ox, Y = (z) => -z * MINI.s + MINI.oy;
+  const px = X(walk.body.x), py = Y(walk.body.z), W = mini.width;
+  // standing still, nothing on it changes: don't repaint (and recomposite) it every frame
+  if (px === MINI.px && py === MINI.py && walk.yaw === MINI.yaw && whereId === MINI.room) return;
+  MINI.px = px; MINI.py = py; MINI.yaw = walk.yaw; MINI.room = whereId;
+  const g = mini.getContext('2d');
+  g.clearRect(0, 0, mini.width, mini.height);
+  g.drawImage(miniBase, 0, 0);
+  // the room you are in, lit faintly
+  const here = whereId && LAYOUT?.rooms?.find((r) => r.id === whereId);
+  if (here?.poly) {
+    g.beginPath();
+    here.poly.forEach(([x, z], i) => (i ? g.lineTo(X(x), Y(z)) : g.moveTo(X(x), Y(z))));
+    g.closePath();
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fill();
+  }
+  // YOU: a dot and a soft cone the way you face, (-sin yaw, -cos yaw) in world x/z turned with
+  // the map. The old solid wedge was a fat arrow that covered half a room.
+  const a = Math.atan2(Math.cos(walk.yaw), Math.sin(walk.yaw)), len = W * 0.1;
+  const cone = g.createRadialGradient(px, py, 0, px, py, len);
+  cone.addColorStop(0, 'rgba(255,207,107,.6)'); cone.addColorStop(1, 'rgba(255,207,107,0)');
+  g.fillStyle = cone;
+  g.beginPath(); g.moveTo(px, py); g.arc(px, py, len, a - 0.6, a + 0.6); g.closePath(); g.fill();
+  g.beginPath(); g.arc(px, py, W * 0.016, 0, Math.PI * 2);
+  g.fillStyle = '#ffcf6b'; g.fill();
+  g.lineWidth = W * 0.006; g.strokeStyle = '#fff'; g.stroke();
+}
+function miniShow(on) {
+  mini.style.display = on ? 'block' : 'none';
+  if (on) {
+    const cssW = mini.getBoundingClientRect().width || 240;
+    MINI.k = Math.min(2, devicePixelRatio || 1);   // canvas px per css px
+    mini.width = mini.height = Math.round(cssW * MINI.k);
+    MINI.lv = undefined;                           // rebuild: the canvas was resized
+    miniDraw();
+  }
+}
+window.__mini = () => ({ shown: mini.style.display !== 'none', lv: MINI.lv, size: [mini.width, mini.height],
+  dot: [MINI.px, MINI.py], s: MINI.s, o: [MINI.ox, MINI.oy] });
+function arriveOn(lv) {
+  walk.lv = lv;
+  if (curLevel !== null && lv && curLevel !== lv) showLevel(lv);   // the picker comes with you
+  walk.shell = walkShell();                      // that storey's walls now stop you
+}
+insideBtn.addEventListener('click', () => walk.on || setWalk(true));
+outsideBtn.addEventListener('click', () => walk.on && setWalk(false));
+const WALK_KEYS = new Set(['w', 'a', 's', 'd', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
+addEventListener('keydown', (e) => {
+  if (!walk.on || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  const key = e.key.toLowerCase();
+  if (key === 'escape') { setWalk(false); return; }
+  if (WALK_KEYS.has(key)) { walk.keys.add(key); e.preventDefault(); }
+});
+// MOUSE LOOK, as in a game: a click on the view grabs the pointer, and from then on moving the
+// mouse looks around (no dragging). Esc lets it go; a second Esc leaves walk mode.
+const locked = () => document.pointerLockElement === renderer.domElement;
+renderer.domElement.addEventListener('click', () => {
+  if (walk.on && !MOBILE && !locked()) renderer.domElement.requestPointerLock?.();
+});
+document.addEventListener('mousemove', (e) => {
+  if (!walk.on || !locked()) return;
+  walk.yawT -= e.movementX * LOOK;
+  walk.pitchT = Math.max(-1.3, Math.min(1.3, walk.pitchT - e.movementY * LOOK));
+});
+addEventListener('keyup', (e) => walk.keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => walk.keys.clear());   // alt-tab mid-stride must not keep walking
+// same element OrbitControls listens on (the toolbar already stops propagation)
+document.body.addEventListener('pointerdown', (e) => {
+  if (!walk.on) return;
+  if (e.pointerType === 'touch' && e.clientX < innerWidth / 2) {
+    walk.move = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 };
+  } else {
+    walk.look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  }
+});
+document.body.addEventListener('pointermove', (e) => {
+  if (walk.move && e.pointerId === walk.move.id) {
+    const clamp = (v) => Math.max(-1, Math.min(1, v / 60));   // 60 px of thumb = full speed
+    walk.move.dx = clamp(e.clientX - walk.move.x0);
+    walk.move.dy = clamp(e.clientY - walk.move.y0);
+  } else if (walk.look && e.pointerId === walk.look.id && !locked()) {   // touch / drag look
+    walk.yawT -= (e.clientX - walk.look.x) * 0.004;
+    walk.pitchT = Math.max(-1.3, Math.min(1.3, walk.pitchT - (e.clientY - walk.look.y) * 0.004));
+    walk.look.x = e.clientX; walk.look.y = e.clientY;
+  }
+});
+const endWalkPointer = (e) => {
+  if (walk.move && e.pointerId === walk.move.id) walk.move = null;
+  if (walk.look && e.pointerId === walk.look.id) walk.look = null;
+};
+document.body.addEventListener('pointerup', endWalkPointer);
+document.body.addEventListener('pointercancel', endWalkPointer);
+
+// ---- PERSON. A 1.72 m Microsoft Rocketbox figure (MIT, see assets/CREDITS.md). It answers the
+// question a floor plan cannot: how big is this room to a PERSON. Not in `meshes`, so walk
+// collision never sees it.
+const personBtn = document.getElementById('personbtn');
+let person = null, personReq = null;
+let personOn = true;
+try { personOn = localStorage.getItem('fw-person') !== '0'; } catch (e) {}
+function loadPerson() {
+  personReq = personReq || new Promise((done) => loadGLB('./vendor/person.glb', (g) => {
+    person = g.scene;
+    person.name = 'person';
+    // a skinned mesh's bounds are the bind pose's, and the limbs leave them: never cull it
+    person.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    scene.add(person);
+    setupPersonAnim(g.animations);
+    done(person);
+  }, undefined, () => done(null)));            // no asset on this host: no button
+  return personReq;
+}
+// the person MOVES: motion-captured idle and walk clips (the walk is timed to SPEED). A
+// figure with no clips is simply static. The mixer runs only while the figure is on screen.
+const pAnim = { mixer: null, acts: {}, cur: null };
+function setupPersonAnim(clips) {
+  if (!clips || !clips.length) return;
+  pAnim.mixer = new THREE.AnimationMixer(person);
+  for (const clip of clips) pAnim.acts[clip.name] = pAnim.mixer.clipAction(clip);
+  personPlay('idle', 0);
+}
+function personPlay(name, fade = 0.25) {
+  const next = pAnim.acts[name];
+  if (!next || pAnim.cur === name) return;
+  const prev = pAnim.acts[pAnim.cur];
+  next.reset().fadeIn(fade).play();
+  if (prev) prev.fadeOut(fade);
+  pAnim.cur = name;
+}
+function tickPerson(dt) {
+  if (!pAnim.mixer || !person || !person.visible) return;
+  personPlay(walk.on && walk.moving ? 'walk' : 'idle');
+  pAnim.mixer.update(dt);
+}
+function applyPerson() {
+  if (!person) return;
+  // the dollhouse's figure for scale; walking, YOU are the person
+  person.visible = personOn && !walk.on;
+  personBtn.classList.toggle('active', personOn);
+  personBtn.style.display = walk.on ? 'none' : '';
+}
+// the middle of the start room, facing the camera: the first thing that gives the room scale
+function placePerson() {
+  const box = startRoom();
+  if (!person || !box || walk.on) return;
+  const c = freeSpot(box);
+  person.position.set(c.x, box.max.y, c.z);
+  person.rotation.set(0, Math.atan2(camera.position.x - c.x, camera.position.z - c.z), 0);
+  applyPerson();
+}
+personBtn.addEventListener('click', () => {
+  personOn = !personOn;
+  try { localStorage.setItem('fw-person', personOn ? '1' : '0'); } catch (e) {}
+  applyPerson();
+});
+function setupPerson() {
+  loadPerson().then((p) => {
+    if (!p) return;
+    applyPerson();
+    placePerson();
+  });
+}
+window.__person = () => person && { on: personOn, visible: person.visible,
+  clip: pAnim.cur, clips: Object.keys(pAnim.acts),
+  pos: person.position.toArray().map(n => +n.toFixed(2)),
+  // as POSED (precise box follows the bones), so a check can hold it to the walls' scale
+  height: +new THREE.Box3().setFromObject(person, true).getSize(new THREE.Vector3()).y.toFixed(3) };
+
+function setupWalk() {
+  if (!startRoom()) return;                      // no floor slabs: nothing to stand on
+  buildHitGrid();
+  setupPerson();
+  insideBtn.style.display = outsideBtn.style.display = '';
+  outsideBtn.classList.add('active');            // until setWalk says otherwise
+  if (VIEW === 'walk' && !walk.auto) { walk.auto = true; setWalk(true); }
+}
+// read-only seams for checks: `house` is the building's box, so a check can prove the walker
+// never left it through a wall
+window.__walk = () => {
+  const b = new THREE.Box3().setFromObject(currentScene);
+  const r = (v) => v.toArray().map(n => +n.toFixed(3));
+  return { on: walk.on, yaw: +walk.yaw.toFixed(3), pitch: +walk.pitch.toFixed(3),
+           shell: walk.shell.length, pos: r(walk.on ? walk.body : camera.position),
+           speed: +walk.vel.length().toFixed(2), house: [r(b.min), r(b.max)],
+           feet: +walk.feet.toFixed(3), lv: walk.lv,
+           level: curLevel };
+};
+// every tread, low to high (world centres + top face), and the doorway nearest the foot
+window.__flight = () => {
+  const t = meshes.filter((o) => STAIR_RE.test(o.name || ''))
+    .map((o) => new THREE.Box3().setFromObject(o)).sort((a, b) => a.max.y - b.max.y);
+  if (!t.length) return null;
+  const c = (b) => { const v = b.getCenter(new THREE.Vector3()); return [v.x, b.max.y, v.z]; };
+  const f0 = c(t[0]), door = ((LAYOUT && LAYOUT.doors) || [])
+    .filter((d) => d.centre && d.y < f0[1] && d.y > f0[1] - 1)
+    .map((d) => [d.centre[0], d.y, d.centre[1]])
+    .sort((a, b) => Math.hypot(a[0] - f0[0], a[2] - f0[2]) - Math.hypot(b[0] - f0[0], b[2] - f0[2]))[0];
+  return { n: t.length, first: f0, last: c(t[t.length - 1]), treads: t.map(c), door: door || null };
+};
+window.__walkTo = (x, z, yaw, feet) => {
+  const g = groundAt(x, z, feet ?? walk.feet);
+  if (!g) return false;
+  walk.body.set(x, g.y + EYE, z); walk.feet = g.y; walk.lv = g.lv; setLook(yaw, 0);
+  aimWalk();
+  whereAmI();
+  return true;
+};
+
+// ---- DOORS. build3d writes each swinging leaf's hinge (world x/z) and its ajar angle into
+// layout.json `doors`; every leaf is BUILT ajar, so "closed" is +ajar about the hinge and
+// "open" is -(90 - ajar).
+// ⚠️ THEY START SHUT. Left ajar, every leaf stuck into its room like a plank: from above it hid
+// the floor and made rooms read smaller, and walking it was something to edge around. Shut,
+// the home reads at its real size; walking, a door swings open as you come up to it and
+// closes behind you (autoDoors), and no door ever stops you. From outside, a click (not a
+// drag) on a leaf opens or shuts it.
+const doors = [];
+const swinging = () => doors.some((d) => d.anim);
+const AUTO_DOOR = 1.7;                          // m from a doorway at which it opens for you
+function setupDoors(byName) {
+  for (const d of doors) scene.remove(d.pivot);
+  doors.length = 0;
+  for (const rec of (LAYOUT && LAYOUT.doors) || []) {
+    const ms = rec.nodes.map((n) => byName.get(SANE(n))).filter(Boolean);
+    if (!ms.length) continue;
+    const pivot = new THREE.Object3D();
+    pivot.position.set(rec.hinge[0], 0, rec.hinge[1]);
+    scene.add(pivot);
+    pivot.updateMatrixWorld(true);
+    for (const m of ms) { pivot.attach(m); m.userData.door = doors.length; }
+    const ajar = THREE.MathUtils.degToRad(rec.ajar);
+    pivot.rotation.y = ajar;                    // shut from the start
+    doors.push({ pivot, meshes: ms, ajar, a: ajar, target: ajar, closed: true, anim: false,
+                 centre: rec.centre, y: rec.y || 0 });
+  }
+  renderer.shadowMap.needsUpdate = true;
+}
+// WHICH ROOM YOU ARE IN (layout.json `rooms`, outlines in world x/z), shown bottom right as you
+// enter it and faded after a few seconds. Between rooms (a doorway, a wall line) nothing
+// changes, so the name never flickers as you pass through a door.
+const whereEl = document.getElementById('where');
+let whereId = null, whereTimer = 0;
+function inPoly(x, z, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j];
+    if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function whereAmI() {
+  const b = walk.body;
+  const r = (LAYOUT?.rooms || []).find((r) => r.poly && (walk.lv == null || r.lv === walk.lv)
+                                            && inPoly(b.x, b.z, r.poly));
+  if (!r || r.id === whereId) return;
+  whereId = r.id;
+  whereEl.textContent = r.name;
+  whereEl.classList.add('on');
+  clearTimeout(whereTimer);
+  whereTimer = setTimeout(() => whereEl.classList.remove('on'), 3200);
+}
+function autoDoors() {
+  for (const d of doors) {
+    if (!d.centre) continue;
+    const far = Math.hypot(d.centre[0] - walk.body.x, d.centre[1] - walk.body.z);
+    const here = Math.abs(d.y - walk.feet) < 1.2;          // this storey's doors only
+    if (d.closed && here && far < AUTO_DOOR) swingDoor(d, false);
+    else if (!d.closed && (!here || far > AUTO_DOOR + 0.6)) swingDoor(d, true);
+  }
+}
+function swingDoor(d, closed) {
+  d.closed = closed;
+  d.target = closed ? d.ajar : -(Math.PI / 2 - Math.abs(d.ajar)) * Math.sign(d.ajar);
+  if (d.anim) return;
+  d.anim = true;
+  const step = () => {
+    const diff = d.target - d.a;
+    d.a = Math.abs(diff) < 0.02 ? d.target : d.a + Math.sign(diff) * Math.min(Math.abs(diff), 0.09);
+    d.pivot.rotation.y = d.a;
+    if (d.a !== d.target) requestAnimationFrame(step); else d.anim = false;
+  };
+  step();
+}
+{
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  let down = null;
+  // the target is checked on DOWN: OrbitControls captures the pointer on body, so every
+  // pointerup is retargeted to body and a click on the canvas never looked like one
+  document.body.addEventListener('pointerdown', (e) => {
+    down = e.target === renderer.domElement ? { x: e.clientX, y: e.clientY } : null;
+  });
+  document.body.addEventListener('pointerup', (e) => {
+    const d0 = down;
+    down = null;
+    if (!d0 || !doors.length) return;
+    if (Math.hypot(e.clientX - d0.x, e.clientY - d0.y) > 4) return;   // a drag orbits or looks
+    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(meshes.filter((o) => o.visible), false)[0];
+    const i = hit && hit.object.userData.door;
+    if (i === undefined || i === null) return;
+    swingDoor(doors[i], !doors[i].closed);
+  });
+}
+window.__doors = () => doors.map((d) => {
+  const b = new THREE.Box3();
+  d.meshes.forEach((m) => b.expandByObject(m, true));   // precise: the leaf is baked at an angle
+  return { closed: d.closed, a: d.a, ajar: d.ajar, moving: !!d.anim, size: b.getSize(new THREE.Vector3()).toArray() };
+});
+window.__swingDoor = (i, closed) => swingDoor(doors[i], closed);
+// where a leaf's visible centre is on screen, for a real click (null = off screen or hidden)
+window.__doorScreen = (i) => {
+  const d = doors[i];
+  if (!d) return null;
+  const b = new THREE.Box3();
+  d.meshes.forEach((m) => b.expandByObject(m));
+  const c = b.getCenter(new THREE.Vector3());
+  const ray = new THREE.Raycaster(camera.position, c.clone().sub(camera.position).normalize());
+  const hit = ray.intersectObjects(meshes.filter((o) => o.visible), false)[0];
+  if (!hit || hit.object.userData.door !== i) return null;
+  const v = c.project(camera);
+  return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
+};
+
+// ---- FRAME BUDGET. The sun's shadow map draws the whole scene a second time, so it is
+// re-rendered only when something that casts a shadow moved (a door, a storey toggled, the
+// Person); the sun never moves.
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
+const budget = { cam: new THREE.Matrix4(), still: 0, sig: NaN, moving: false, input: 0, n: 0 };
+const BUDGET = PARAMS.get('budget') !== '0';     // A/B: ?budget=0 = every pass, every frame
+function frameBudget(now) {
+  if (!BUDGET) { renderer.shadowMap.needsUpdate = true; return; }
+  budget.moving = !budget.cam.equals(camera.matrixWorld);
+  if (budget.moving) { budget.cam.copy(camera.matrixWorld); budget.still = now; }
+  // what can MOVE and cast a shadow, folded to one number: the door leaves and the Person. The
+  // home itself never moves, and the storey picker and the furniture switch ask for a redraw
+  // themselves. (Folding all ~650 casters' matrices every frame was 5% of a slow CPU.)
+  let sig = person?.visible ? person.position.x + 3 * person.position.z + 7 * person.rotation.y : -1;
+  for (let i = 0; i < doors.length; i++) sig += (i + 1.37) * doors[i].a;
+  // a swinging door redraws the map ONCE, when it stops (its sig still differs then): every
+  // frame of the swing was the whole home drawn again for a shadow nobody watches move
+  if ((sig !== budget.sig && !swinging()) || (walk.on && person?.visible)) {
+    budget.sig = sig;
+    renderer.shadowMap.needsUpdate = true;
+  }
+}
+// IDLE: no input for 1 s, camera still, nothing moved -> draw every 4th frame. Inside too:
+// standing still in a room drew the whole home 60 times a second (79% of an M2's GPU,
+// measured), and a fanless laptop heats up and throttles the walk that follows.
+for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart', 'click'])
+  addEventListener(ev, () => { budget.input = performance.now(); }, { passive: true, capture: true });
+const idleSkip = (now) => BUDGET && !budget.moving && now - budget.input > 1000 && !swinging()
+  && now - budget.still > 1000 && !renderer.shadowMap.needsUpdate && budget.n++ % 4 !== 0;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  if (walk.on) camera.fov = walkFov();
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+// ⚠️ SAFARI'S rAF TIME IS NOT THE VSYNC. Chrome passes the frame's vsync time; Safari passes
+// when the callback happened to run, in whole ms: 16, 17, 17, and 22 then 12 when one runs
+// late, while the screen still shows one frame per refresh. Moving by that raw time, a steady
+// turn's per-frame step varied 11.5% (one frame 5.5x another), measured in Safari 27: judder
+// at a full 60 fps. The running average of the last ~10 frames is the refresh (1.0%), still
+// follows a real slowdown, and adds up to the same total time, so nothing drifts.
+let frameT = 0, frameDt = 1 / 60;
+function animate(now = performance.now()) {
+  requestAnimationFrame(animate);
+  if (frameT) frameDt += (Math.min(0.05, (now - frameT) / 1000) - frameDt) * 0.1;
+  frameT = now;
+  tickPerson(frameDt);
+  if (walk.on) { stepWalk(frameDt); miniDraw(); pickLamps(); } else controls.update();
+  frameBudget(now);
+  govern(now);
+  if (idleSkip(now)) return;
+  if (sky) sky.position.copy(camera.position);  // the sky is as far as the eye can go
+  composer.render();
+}
+
+// ---- HELP. A ? panel that is always reachable. Phones have no hint bar (#info is hidden at
+// <=640 px), so this is their only guide.
+{
+  const TOUCH = matchMedia('(pointer: coarse)').matches;
+  const helpEl = document.getElementById('help'), helpBtn = document.getElementById('helpbtn');
+  helpEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  // built on open, not at startup: the Person button only decides to exist once the model loads
+  const shown = (id) => document.getElementById(id).style.display !== 'none';
+  const renderHelp = () => helpEl.innerHTML = `<h4>Outside<button class="x" id="helpx" aria-label="Close help">&times;</button></h4><dl>` +
+    row('Outside', 'the whole home from above, roof off') +
+    (TOUCH ? row('One finger', 'turn the home') + row('Pinch', 'zoom in and out') + row('Two fingers', 'slide the view')
+           : row('Drag', 'turn the home') + row('Scroll', 'zoom in and out') + row('Right-drag', 'slide the view')) +
+    (levelParts.size > 1 ? row('1F / 2F', 'show one floor at a time') : '') +
+    `</dl><h4>Inside</h4><dl>` +
+    (TOUCH ? row('Inside', 'then left thumb moves, right thumb looks')
+           : row('Inside', 'click, then the mouse looks, W A S D moves, Shift runs')
+             + row('Esc', 'let go of the mouse; again to go outside')) +
+    (__flight() ? row('Stairs', 'walk onto them to climb to the next floor') : '') +
+    (doors.length ? row('Doors', 'open as you walk up to them; from outside, ' + (TOUCH ? 'tap' : 'click') + ' one') : '') +
+    (shown('personbtn') ? row('Person', 'a 1.70 m figure, for scale') : '') +
+    row('&#9881;', 'top right: switch the furniture off and on') +
+    `</dl>`;
+  const setHelp = (on) => {
+    if (on) renderHelp();
+    helpEl.style.display = on ? 'block' : 'none';
+    helpBtn.classList.toggle('active', on);
+    helpBtn.setAttribute('aria-expanded', on);
+    if (on) document.getElementById('helpx').focus();
+  };
+  helpBtn.addEventListener('click', () => setHelp(helpEl.style.display !== 'block'));
+  helpEl.addEventListener('click', (e) => { if (e.target.id === 'helpx') { setHelp(false); helpBtn.focus(); } });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpEl.style.display === 'block') setHelp(false);
+    if (e.key === '?' && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) setHelp(helpEl.style.display !== 'block');
+  });
+}
+
+// ---- SETTINGS (the gear, top right). Furniture: every `fixture:` mesh on or off, remembered
+// per browser like the Person toggle. Off, the walker walks where the sofa was.
+let furnOn = true;
+try { furnOn = localStorage.getItem('fw-furniture') !== '0'; } catch (e) {}
+const furnChk = document.getElementById('furnchk');
+function applyFurniture() {
+  furnChk.checked = furnOn;
+  for (const o of meshes) {
+    if (FIXTURE_RE.test(o.name || ''))
+      o.visible = furnOn && (curLevel === null || !o.userData.lv || o.userData.lv === curLevel);
+  }
+  for (const l of spots) l.intensity = furnOn ? SPOT_I : 0;
+  applyCeilings();                               // the pendants hang from it
+  if (walk.on) walk.shell = walkShell();
+  renderer.shadowMap.needsUpdate = true;
+}
+furnChk.addEventListener('change', () => {
+  furnOn = furnChk.checked;
+  try { localStorage.setItem('fw-furniture', furnOn ? '1' : '0'); } catch (e) {}
+  applyFurniture();
+});
+{
+  const setEl = document.getElementById('settings'), setBtn = document.getElementById('setbtn');
+  // OrbitControls and the walk look both listen on body: keep the gear's pointer to itself
+  for (const el of [setEl, setBtn]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  const setSettings = (on) => {
+    setEl.style.display = on ? 'block' : 'none';
+    setBtn.classList.toggle('active', on);
+    setBtn.setAttribute('aria-expanded', on);
+  };
+  setBtn.addEventListener('click', () => setSettings(setEl.style.display !== 'block'));
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && setEl.style.display === 'block') setSettings(false);
+  });
+}
+window.__furniture = () => ({ on: furnOn,
+  shown: meshes.filter((o) => FIXTURE_RE.test(o.name || '') && o.visible).length,
+  all: meshes.filter((o) => FIXTURE_RE.test(o.name || '')).length,
+  hanging: ceilingParts.filter((o) => HANGING_RE.test(o.name || '')).map((o) => [o.name, o.visible]) });
+
+loadModel();
+animate();
+</script>
+
