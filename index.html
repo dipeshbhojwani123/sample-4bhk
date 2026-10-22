@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <!-- Declared, not inherited: served by a plain static host, a '·' would otherwise render as 'Â·'. -->
 <meta charset="utf-8">
+<link rel="preload" href="model_web.glb.txt" as="fetch" crossorigin="anonymous">
+<link rel="preload" href="../vendor/three/addons/libs/basis/basis_transcoder.js" as="fetch" crossorigin="anonymous">
+<link rel="preload" href="../vendor/three/addons/libs/basis/basis_transcoder.wasm" as="fetch" crossorigin="anonymous">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Sample 4 BHK Walkthrough</title>
 <meta name="description" content="A 3D home built from its floor plan. Walk through it, look from above, climb the stairs. No app, no login.">
@@ -320,7 +323,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromEquirectangular(makeInteriorEnv()).texture;
 // Upgrade to the REAL interior HDRI (a CC0 studio light pre-baked to a raw float32
 // equirect). Async so it never blocks first paint; keeps the gradient on a 404.
-fetch('./vendor/interior_env.bin.txt').then(r => r.ok ? r.text() : Promise.reject()).then(b64buf).then(buf => {
+new Promise(r => addEventListener('modelshown', r, { once: true })).then(() => fetch('./vendor/interior_env.bin.txt')).then(r => r.ok ? r.text() : Promise.reject()).then(b64buf).then(buf => {
   const tex = new THREE.DataTexture(new Float32Array(buf), 256, 128, THREE.RGBAFormat, THREE.FloatType);
   tex.mapping = THREE.EquirectangularReflectionMapping;
   tex.needsUpdate = true;
@@ -619,10 +622,23 @@ const watchdog = setInterval(() => {
 const ktx2 = new KTX2Loader()
   .setTranscoderPath('./vendor/three/addons/libs/basis/')
   .detectSupport(renderer);
-function b64buf(t) { return Uint8Array.from(atob(t), c => c.charCodeAt(0)).buffer; }
+const SIZES = {"model_web.glb": 2728284, "model.glb": 7764012, "./vendor/person.glb": 2029608, "./vendor/interior_env.bin": 699052};   // decoded .txt lengths: the host gzips, so Content-Length is no use
+function b64buf(t) { const s = atob(t), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b.buffer; }
+async function fetchText(url, onProgress) {
+  const r = await fetch(url + '.txt');
+  if (!r.ok) throw new Error(r.status + ' ' + url);
+  const rd = r.body.getReader(), parts = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    parts.push(value); got += value.length;
+    if (onProgress) onProgress({ loaded: got, total: SIZES[url] || 0 });
+  }
+  return new TextDecoder().decode(await new Blob(parts).arrayBuffer());
+}
 function loadGLB(url, onLoad, onProgress, onError) {
-  fetch(url + '.txt').then(r => r.ok ? r.text() : Promise.reject(new Error(r.status + ' ' + url)))
-    .then(t => makeLoader().parse(b64buf(t), '', onLoad, onError), onError);
+  fetchText(url, onProgress).then(t => makeLoader().parse(b64buf(t), '', onLoad, onError), onError);
 }
 function makeLoader() {
   return new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
@@ -748,6 +764,7 @@ function loadModel() {
     ktx2.dispose();
     composer.render();
     loadingEl.style.display = 'none';
+    dispatchEvent(new Event('modelshown'));
   }, (ev) => {
     if (ev.total) {
       const pct = Math.min(100, ev.loaded / ev.total * 100);
